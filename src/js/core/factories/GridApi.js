@@ -181,28 +181,33 @@
          *
          * </pre>
          */
+
+        function somelisteners (listener, l) {
+          return listener.handler === l;
+        }
+
+        function filterlisteners (listeners, listener) {
+          return listeners.some(somelisteners.bind(null, listener));
+        }
+
+        function deregister (l) { l.dereg(); }
+        function assignDereg (gridapi, l) {
+          l.dereg = registerEventWithAngular(l.eventId, l.handler, gridapi.grid, l._this);
+        }
+
         GridApi.prototype.suppressEvents = function (listenerFuncs, callBackFn) {
-          var self = this;
           var listeners = angular.isArray(listenerFuncs) ? listenerFuncs : [listenerFuncs];
 
           //find all registered listeners
-          var foundListeners = self.listeners.filter(function(listener) {
-            return listeners.some(function(l) {
-              return listener.handler === l;
-            });
-          });
+          var foundListeners = this.listeners.filter(filterlisteners.bind(null, listeners));
 
           //deregister all the listeners
-          foundListeners.forEach(function(l){
-            l.dereg();
-          });
+          foundListeners.forEach(deregister);
 
           callBackFn();
 
           //reregister all the listeners
-          foundListeners.forEach(function(l){
-              l.dereg = registerEventWithAngular(l.eventId, l.handler, self.grid, l._this);
-          });
+          foundListeners.forEach(assignDereg.bind(null, this));
 
         };
 
@@ -230,61 +235,79 @@
          * @param {string} featureName name of the feature that raises the event
          * @param {string} eventName  name of the event
          */
-        GridApi.prototype.registerEvent = function (featureName, eventName) {
-          var self = this;
-          if (!self[featureName]) {
-            self[featureName] = {};
+
+         function doAngularEmit (args) {
+            $rootScope.$emit.apply($rootScope, args);
+         }
+
+         function removeListener (gridapi, listener){
+           listener.dereg();
+           var index = gridapi.listeners.indexOf(listener);
+           gridapi.listeners.splice(index,1);
+         }
+
+         function registerOnEvent (gridapi, featureName, eventName, eventId, scope, handler, _this) {
+            if ( scope !== null && typeof(scope.$on) === 'undefined' ){
+              gridUtil.logError('asked to listen on ' + featureName + '.on.' + eventName + ' but scope wasn\'t passed in the input parameters.  It is legitimate to pass null, but you\'ve passed something else, so you probably forgot to provide scope rather than did it deliberately, not registering');
+              return;
+            }
+            var deregAngularOn = registerEventWithAngular(eventId, handler, gridapi, _this);
+
+            //track our listener so we can turn off and on
+            var listener = {handler: handler, dereg: deregAngularOn, eventId: eventId, scope: scope, _this:_this};
+            gridapi.listeners.push(listener);
+
+            //destroy tracking when scope is destroyed
+            var ret = removeListener.bind(null, gridapi, listener);
+            if (scope) {
+              scope.$on('$destroy', ret);
+            }
+            return ret;
           }
 
-          var feature = self[featureName];
+        GridApi.prototype.registerEvent = function (featureName, eventName) {
+          if (!this[featureName]) {
+            this[featureName] = {};
+          }
+
+          var feature = this[featureName];
           if (!feature.on) {
             feature.on = {};
             feature.raise = {};
           }
 
-          var eventId = self.grid.id + featureName + eventName;
+          var eventId = this.grid.id + featureName + eventName;
 
           // gridUtil.logDebug('Creating raise event method ' + featureName + '.raise.' + eventName);
+          /*
           feature.raise[eventName] = function () {
             $rootScope.$emit.apply($rootScope, [eventId].concat(Array.prototype.slice.call(arguments)));
           };
+          */
+
+          var args = Array.prototype.slice.call(arguments);
+          args.unshift(eventId);
+
+          feature.raise[eventName] = doAngularEmit.bind(null, args);
 
           // gridUtil.logDebug('Creating on event method ' + featureName + '.on.' + eventName);
-          feature.on[eventName] = function (scope, handler, _this) {
-            if ( scope !== null && typeof(scope.$on) === 'undefined' ){
-              gridUtil.logError('asked to listen on ' + featureName + '.on.' + eventName + ' but scope wasn\'t passed in the input parameters.  It is legitimate to pass null, but you\'ve passed something else, so you probably forgot to provide scope rather than did it deliberately, not registering');
-              return;
-            }
-            var deregAngularOn = registerEventWithAngular(eventId, handler, self.grid, _this);
-
-            //track our listener so we can turn off and on
-            var listener = {handler: handler, dereg: deregAngularOn, eventId: eventId, scope: scope, _this:_this};
-            self.listeners.push(listener);
-
-            var removeListener = function(){
-              listener.dereg();
-              var index = self.listeners.indexOf(listener);
-              self.listeners.splice(index,1);
-            };
-
-            //destroy tracking when scope is destroyed
-            if (scope) {
-              scope.$on('$destroy', function() {
-                removeListener();
-              });
-            }
-
-
-            return removeListener;
-          };
+          feature.on[eventName] = registerOnEvent.bind(null, this, featureName, eventName, eventId);
         };
 
+        function registerEventWithAngular_handler (config, event) {
+          var args = Array.prototype.slice.call(arguments);
+          args.splice(0, 2); //remove evt argument
+
+          var handler = config[0],
+            grid = config[1],
+            _this = config[2];
+
+
+          handler.apply(_this ? _this : grid.api, args);
+        }
+
         function registerEventWithAngular(eventId, handler, grid, _this) {
-          return $rootScope.$on(eventId, function (event) {
-            var args = Array.prototype.slice.call(arguments);
-            args.splice(0, 1); //remove evt argument
-            handler.apply(_this ? _this : grid.api, args);
-          });
+          return $rootScope.$on(eventId, registerEventWithAngular_handler.bind(null, [handler, grid, _this]));
         }
 
         /**
@@ -303,23 +326,26 @@
          * </pre>
          * @param {object} eventObjectMap map of feature/event names
          */
+
+
+        function traverseEventObjectMap_angular (feature, prop, propName) {
+            feature.events.push(propName);
+          }
+
+        function traverseEventObjectMap (features, featProp, featPropName) {
+          var feature = {name: featPropName, events: []};
+          angular.forEach(featProp, traverseEventObjectMap_angular.bind(null, feature));
+          features.push(feature);
+        }
+
+        function traverseFeatures (gridapi, feature){
+          feature.events.forEach(gridapi.registerEvent.bind(gridapi, gridapi, feature.name));
+        }
+
         GridApi.prototype.registerEventsFromObject = function (eventObjectMap) {
-          var self = this;
           var features = [];
-          angular.forEach(eventObjectMap, function (featProp, featPropName) {
-            var feature = {name: featPropName, events: []};
-            angular.forEach(featProp, function (prop, propName) {
-              feature.events.push(propName);
-            });
-            features.push(feature);
-          });
-
-          features.forEach(function (feature) {
-            feature.events.forEach(function (event) {
-              self.registerEvent(feature.name, event);
-            });
-          });
-
+          angular.forEach(eventObjectMap, traverseEventObjectMap.bind(null, features));
+          features.forEach(traverseFeatures.bind(null, this));
         };
 
         /**
@@ -357,22 +383,29 @@
          * @param {object} eventObjectMap map of feature/event names
          * @param {object} _this binds this to _this for all functions.  Defaults to gridApi.grid
          */
-        GridApi.prototype.registerMethodsFromObject = function (methodMap, _this) {
-          var self = this;
-          var features = [];
-          angular.forEach(methodMap, function (featProp, featPropName) {
-            var feature = {name: featPropName, methods: []};
-            angular.forEach(featProp, function (prop, propName) {
-              feature.methods.push({name: propName, fn: prop});
-            });
-            features.push(feature);
-          });
 
-          features.forEach(function (feature) {
-            feature.methods.forEach(function (method) {
-              self.registerMethod(feature.name, method.name, method.fn, _this);
-            });
-          });
+        function traverseMethodMapFeatProp (feature, prop, propName){
+          feature.methods.push({name: propName, fn: prop});
+        }
+
+        function traverseMethodMap (features, featProp, featPropName) {
+          var feature = {name: featPropName, methods: []};
+          angular.forEach(featProp, traverseMethodMapFeatProp.bind(null, feature));
+          features.push(feature);
+        }
+
+        function traverseFeatureMethods (gridapi, feature, _this, method){
+          gridapi.registerMethod(feature.name, method.name, method.fn, _this);
+        }
+
+        function traverseRegisterFeatures (gridapi, _this, feature) {
+          feature.methods.forEach(traverseFeatureMethods.bind(null, gridapi, feature, _this));
+        }
+
+        GridApi.prototype.registerMethodsFromObject = function (methodMap, _this) {
+          var features = [];
+          angular.forEach(methodMap, traverseMethodMap.bind(null, features));
+          features.forEach(traverseRegisterFeatures.bind(null, this, _this));
 
         };
 

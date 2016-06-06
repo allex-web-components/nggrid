@@ -1,5 +1,6 @@
 (function(){
   'use strict';
+
   /**
    * @ngdoc overview
    * @name ui.grid.directive:uiGridOneBind
@@ -244,102 +245,132 @@
       //If the diretiveName has to be overridden then it does so here. This is because the tag being modified and the directive sometimes don't match up.
       var directiveName = (v.aria ? baseDirectiveName + 'Aria' : baseDirectiveName) + (v.directiveName ? v.directiveName : v.tag);
       oneBinders.directive(directiveName, ['gridUtil', function(gridUtil){
+
+        function findController (_tmp, controller){
+          if (!(controller && controller.grid)) {return false;}
+
+          _tmp.grid = controller.grid;
+          return true; //We've found the grid
+        }
+
+        function appendGridIdF (scope, controllers, val){
+          var grid, _tmp; //Get an instance of the grid if its available
+          //If its available in the scope then we don't need to try to find it elsewhere
+          if (scope.grid) {
+            grid = scope.grid;
+          }
+          //Another possible location to try to find the grid
+          else if (scope.col && scope.col.grid){
+            grid = scope.col.grid;
+          }
+          //Last ditch effort: Search through the provided controllers.
+          else {
+            _tmp = {
+              grid: grid
+            };
+
+            //Go through the controllers till one has the element we need
+            var r = controllers.some( findController.bind(null, _tmp) );
+            grid = _tmp.grid;
+            _tmp = null;
+
+            if (!r) {
+            //We tried our best to find it for you
+              gridUtil.logError("["+directiveName+"] A valid grid could not be found to bind id. Are you using this directive " +
+                               "within the correct scope? Trying to generate id: [gridID]-" + val);
+              throw new Error("No valid grid could be found");
+            }
+          }
+
+          if (grid){
+            var idRegex = new RegExp(grid.id.toString());
+            //If the grid id hasn't been appended already in the template declaration
+            if (!idRegex.test(val)){
+              val = grid.id.toString() + '-' + val;
+            }
+          }
+          return val;
+        }
+
+        function appendIDs(_tmp, appendGridId, s){
+          _tmp.newIdString = (_tmp.newIdString ? (_tmp.newIdString + ' ') : '') +  appendGridId(s);
+        }
+        function pushNonNull (_tmp, results, value, index) {
+          if (!(value !== null && typeof(value) !== "undefined")) {return;}
+
+          _tmp.nonNullFound = true; //A non null value for a key was found so the object must have been initialized
+          if (value) {results.push(index);}
+        }
+
+        function watchDirectiveName (ctx, v, appendGridId, iElement, newV){
+          if (!newV){ return; }
+
+          //If we are trying to add an id element then we also apply the grid id if it isn't already there
+          if (v.appendGridId) {
+            var tmp = {newIdString: null};
+            //Append the id to all of the new ids.
+            angular.forEach( newV.split(' '), appendIDs.bind(null, tmp, appendGridId));
+            newV = tmp.newIdString;
+            tmp = null;
+          }
+
+          // Append this newValue to the dom element.
+          switch (v.method) {
+            case 'attr': //The attr method takes two paraams the tag and the value
+              if (v.aria) {
+                //If it is an aria element then append the aria prefix
+                iElement[v.method]('aria-' + v.tag.toLowerCase(),newV);
+              } else {
+                iElement[v.method](v.tag.toLowerCase(),newV);
+              }
+              break;
+            case 'addClass':
+              //Pulled from https://github.com/Pasvaz/bindonce/blob/master/bindonce.js
+              if (angular.isObject(newV) && !angular.isArray(newV)) {
+                var results = [];
+                var nonNullFound = false; //We don't want to remove the binding unless the key is actually defined
+
+                var _tmp = {
+                  nonNullFound : nonNullFound
+                };
+                angular.forEach(newV, pushNonNull.bind(null, _tmp, results));
+                nonNullFound = _tmp.nonNullFound;
+                _tmp = null;
+                //A non null value for a key wasn't found so assume that the scope values haven't been fully initialized
+                if (!nonNullFound){
+                  return; // If not initialized then the watcher should not be removed yet.
+                }
+                newV = results;
+              }
+
+              if (newV) {
+                iElement.addClass(angular.isArray(newV) ? newV.join(' ') : newV);
+              } else {
+                return;
+              }
+              break;
+            default:
+              iElement[v.method](newV);
+              break;
+          }
+
+          //Removes the watcher on itself after the bind
+          ctx.rmWatcher();
+        // True ensures that equality is determined using angular.equals instead of ===
+        }
+
         return {
           restrict: 'A',
           require: ['?uiGrid','?^uiGrid'],
           link: function(scope, iElement, iAttrs, controllers){
             /* Appends the grid id to the beginnig of the value. */
-            var appendGridId = function(val){
-              var grid; //Get an instance of the grid if its available
-              //If its available in the scope then we don't need to try to find it elsewhere
-              if (scope.grid) {
-                grid = scope.grid;
-              }
-              //Another possible location to try to find the grid
-              else if (scope.col && scope.col.grid){
-                grid = scope.col.grid;
-              }
-              //Last ditch effort: Search through the provided controllers.
-              else if (!controllers.some( //Go through the controllers till one has the element we need
-                function(controller){
-                  if (controller && controller.grid) {
-                    grid = controller.grid;
-                    return true; //We've found the grid
-                  }
-              })){
-                //We tried our best to find it for you
-                gridUtil.logError("["+directiveName+"] A valid grid could not be found to bind id. Are you using this directive " +
-                                 "within the correct scope? Trying to generate id: [gridID]-" + val);
-                throw new Error("No valid grid could be found");
-              }
-
-              if (grid){
-                var idRegex = new RegExp(grid.id.toString());
-                //If the grid id hasn't been appended already in the template declaration
-                if (!idRegex.test(val)){
-                  val = grid.id.toString() + '-' + val;
-                }
-              }
-              return val;
-            };
+            var appendGridId = appendGridIdF.bind(null,scope, controllers);
 
             // The watch returns a function to remove itself.
-            var rmWatcher = scope.$watch(iAttrs[directiveName], function(newV){
-              if (newV){
-                //If we are trying to add an id element then we also apply the grid id if it isn't already there
-                if (v.appendGridId) {
-                  var newIdString = null;
-                  //Append the id to all of the new ids.
-                  angular.forEach( newV.split(' '), function(s){
-                    newIdString = (newIdString ? (newIdString + ' ') : '') +  appendGridId(s);
-                  });
-                  newV = newIdString;
-                }
-
-                // Append this newValue to the dom element.
-                switch (v.method) {
-                  case 'attr': //The attr method takes two paraams the tag and the value
-                    if (v.aria) {
-                      //If it is an aria element then append the aria prefix
-                      iElement[v.method]('aria-' + v.tag.toLowerCase(),newV);
-                    } else {
-                      iElement[v.method](v.tag.toLowerCase(),newV);
-                    }
-                    break;
-                  case 'addClass':
-                    //Pulled from https://github.com/Pasvaz/bindonce/blob/master/bindonce.js
-                    if (angular.isObject(newV) && !angular.isArray(newV)) {
-                      var results = [];
-                      var nonNullFound = false; //We don't want to remove the binding unless the key is actually defined
-                      angular.forEach(newV, function (value, index) {
-                        if (value !== null && typeof(value) !== "undefined"){
-                          nonNullFound = true; //A non null value for a key was found so the object must have been initialized
-                          if (value) {results.push(index);}
-                        }
-                      });
-                      //A non null value for a key wasn't found so assume that the scope values haven't been fully initialized
-                      if (!nonNullFound){
-                        return; // If not initialized then the watcher should not be removed yet.
-                      }
-                      newV = results;
-                    }
-
-                    if (newV) {
-                      iElement.addClass(angular.isArray(newV) ? newV.join(' ') : newV);
-                    } else {
-                      return;
-                    }
-                    break;
-                  default:
-                    iElement[v.method](newV);
-                    break;
-                }
-
-                //Removes the watcher on itself after the bind
-                rmWatcher();
-              }
-            // True ensures that equality is determined using angular.equals instead of ===
-            }, true); //End rm watchers
+            var ctx = {
+              rmWatcher : null
+            };
+            ctx.rmWatcher = scope.$watch(iAttrs[directiveName], watchDirectiveName.bind(null, ctx, v, appendGridId, iElement), true); //End rm watchers
           } //End compile function
         }; //End directive return
       } // End directive function

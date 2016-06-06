@@ -52,9 +52,7 @@
         var interpolateFn = $interpolate($elm.text(), true);
 
         if (interpolateFn) {
-          $scope.$watch(interpolateFn, function(value) {
-            $elm.text(value);
-          });
+          $scope.$watch(interpolateFn, $elm.text.bind($elm));
         }
 
           // uiGridCtrl.recalcRowStyles = function() {

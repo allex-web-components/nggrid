@@ -71,6 +71,7 @@ module.service('rowSearcher', ['gridUtil', 'uiGridConstants', function (gridUtil
    * @param {object} filter object to use
    * @returns {uiGridConstants.filter<int>} Value representing the condition constant value
    */
+    function replacer ($0, $1) { return $1 ? $0 : '[\\s\\S]*?'; }
   rowSearcher.guessCondition = function guessCondition(filter) {
     if (typeof(filter.term) === 'undefined' || !filter.term) {
       return defaultCondition;
@@ -84,7 +85,7 @@ module.service('rowSearcher', ['gridUtil', 'uiGridConstants', function (gridUtil
         regexpFlags += 'i';
       }
 
-      var reText = term.replace(/(\\)?\*/g, function ($0, $1) { return $1 ? $0 : '[\\s\\S]*?'; });
+      var reText = term.replace(/(\\)?\*/g, replacer);
       return new RegExp('^' + reText + '$', regexpFlags);
     }
     // Otherwise default to default condition
@@ -309,6 +310,17 @@ module.service('rowSearcher', ['gridUtil', 'uiGridConstants', function (gridUtil
    * @param {Array[GridRow]} rows GridRows to filter
    * @param {Array[GridColumn]} columns GridColumns with filters to process
    */
+
+   function doesHaveTerm(gridUtil, prev, filter) {
+     if ( !gridUtil.isNullOrUndefined(filter.term) && filter.term !== '' || filter.noTerm ){
+       return true;
+     }
+     return prev;
+   }
+
+   function hasTerm (filters) {
+      return filters.reduce (doesHaveTerm.bind(null, gridUtil), false);
+   }
   rowSearcher.search = function search(grid, rows, columns) {
     /*
      * Added performance optimisations into this code base, as this logic creates deeply nested
@@ -330,18 +342,6 @@ module.service('rowSearcher', ['gridUtil', 'uiGridConstants', function (gridUtil
     var filterData = [];
 
     var colsLength = columns.length;
-
-    var hasTerm = function( filters ) {
-      var hasTerm = false;
-
-      filters.forEach( function (filter) {
-        if ( !gridUtil.isNullOrUndefined(filter.term) && filter.term !== '' || filter.noTerm ){
-          hasTerm = true;
-        }
-      });
-
-      return hasTerm;
-    };
 
     for (var i = 0; i < colsLength; i++) {
       var col = columns[i];

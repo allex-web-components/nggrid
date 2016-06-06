@@ -2,6 +2,21 @@
   'use strict';
 
   angular.module('ui.grid').directive('uiGridFooter', ['$templateCache', '$compile', 'uiGridConstants', 'gridUtil', '$timeout', function ($templateCache, $compile, uiGridConstants, gridUtil, $timeout) {
+    function gotTemplate($scope, $elm, containerCtrl, contents) {
+      var template = angular.element(contents);
+
+      var newElm = $compile(template)($scope);
+      $elm.append(newElm);
+
+      if (containerCtrl) {
+        // Inject a reference to the footer viewport (if it exists) into the grid controller for use in the horizontal scroll handler below
+        var footerViewport = $elm[0].getElementsByClassName('ui-grid-footer-viewport')[0];
+
+        if (footerViewport) {
+          containerCtrl.footerViewport = footerViewport;
+        }
+      }
+    }
 
     return {
       restrict: 'EA',
@@ -20,23 +35,7 @@
 
             containerCtrl.footer = $elm;
 
-            var footerTemplate = $scope.grid.options.footerTemplate;
-            gridUtil.getTemplate(footerTemplate)
-              .then(function (contents) {
-                var template = angular.element(contents);
-
-                var newElm = $compile(template)($scope);
-                $elm.append(newElm);
-
-                if (containerCtrl) {
-                  // Inject a reference to the footer viewport (if it exists) into the grid controller for use in the horizontal scroll handler below
-                  var footerViewport = $elm[0].getElementsByClassName('ui-grid-footer-viewport')[0];
-
-                  if (footerViewport) {
-                    containerCtrl.footerViewport = footerViewport;
-                  }
-                }
-              });
+            gridUtil.getTemplate($scope.grid.options.footerTemplate).then(gotTemplate.bind(null, $scope, $elm, containerCtrl));
           },
 
           post: function ($scope, $elm, $attrs, controllers) {

@@ -193,14 +193,23 @@ angular.module('ui.grid')
    * @param {boolean} fromRowProcessor if true, then it won't raise events or queue the refresh, the
    * row processor does that already
    */
+
+  function calcNewVisibility(_tmp, value, key) {
+    if ( value ){
+      _tmp.newVisibility = false;
+    }
+  }
   GridRow.prototype.evaluateRowVisibility = function ( fromRowProcessor ) {
-    var newVisibility = true;
+    var newVisibility = true,
+      _tmp = null;
+
     if ( typeof(this.invisibleReason) !== 'undefined' ){
-      angular.forEach(this.invisibleReason, function( value, key ){
-        if ( value ){
-          newVisibility = false;
-        }
-      });
+      _tmp = {newVisibility : newVisibility};
+
+      angular.forEach(this.invisibleReason, calcNewVisibility.bind(null, _tmp));
+      newVisibility = _tmp.newVisibility;
+      _tmp = null;
+
     }
     
     if ( typeof(this.visible) === 'undefined' || this.visible !== newVisibility ){

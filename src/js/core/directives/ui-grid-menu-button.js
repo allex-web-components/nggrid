@@ -9,36 +9,44 @@ angular.module('ui.grid')
    *  @description Methods for working with the grid menu
    */
 
-  var service = {
-    /**
-     * @ngdoc method
-     * @methodOf ui.grid.gridMenuService
-     * @name initialize
-     * @description Sets up the gridMenu. Most importantly, sets our
-     * scope onto the grid object as grid.gridMenuScope, allowing us
-     * to operate when passed only the grid.  Second most importantly,
-     * we register the 'addToGridMenu' and 'removeFromGridMenu' methods
-     * on the core api.
-     * @param {$scope} $scope the scope of this gridMenu
-     * @param {Grid} grid the grid to which this gridMenu is associated
-     */
-    initialize: function( $scope, grid ){
+   function sortOrder (a, b) {
+    return a.order - b.order;
+   }
+
+
+   function Service () {
+   }
+   /**
+    * @ngdoc method
+    * @methodOf ui.grid.gridMenuService
+    * @name initialize
+    * @description Sets up the gridMenu. Most importantly, sets our
+    * scope onto the grid object as grid.gridMenuScope, allowing us
+    * to operate when passed only the grid.  Second most importantly,
+    * we register the 'addToGridMenu' and 'removeFromGridMenu' methods
+    * on the core api.
+    * @param {$scope} $scope the scope of this gridMenu
+    * @param {Grid} grid the grid to which this gridMenu is associated
+    */
+
+    function onDestroy ($scope) {
+      if ( $scope.grid && $scope.grid.gridMenuScope ){
+        $scope.grid.gridMenuScope = null;
+      }
+      if ( $scope.grid ){
+        $scope.grid = null;
+      }
+      if ( $scope.registeredMenuItems ){
+        $scope.registeredMenuItems = null;
+      }
+    }
+    Service.prototype.initialize = function( $scope, grid ){
       grid.gridMenuScope = $scope;
       $scope.grid = grid;
       $scope.registeredMenuItems = [];
 
       // not certain this is needed, but would be bad to create a memory leak
-      $scope.$on('$destroy', function() {
-        if ( $scope.grid && $scope.grid.gridMenuScope ){
-          $scope.grid.gridMenuScope = null;
-        }
-        if ( $scope.grid ){
-          $scope.grid = null;
-        }
-        if ( $scope.registeredMenuItems ){
-          $scope.registeredMenuItems = null;
-        }
-      });
+      $scope.$on('$destroy', onDestroy.bind(null,$scope));
 
       $scope.registeredMenuItems = [];
 
@@ -58,7 +66,7 @@ angular.module('ui.grid')
        * which is provided when you want to remove an item.  The id should be unique.
        *
        */
-      grid.api.registerMethod( 'core', 'addToGridMenu', service.addToGridMenu );
+      grid.api.registerMethod( 'core', 'addToGridMenu', this.addToGridMenu.bind(this) );
 
       /**
        * @ngdoc function
@@ -71,8 +79,8 @@ angular.module('ui.grid')
        * @param {string} id the id we'd like to remove from the menu
        *
        */
-      grid.api.registerMethod( 'core', 'removeFromGridMenu', service.removeFromGridMenu );
-    },
+      grid.api.registerMethod( 'core', 'removeFromGridMenu', this.removeFromGridMenu.bind(this) );
+    };
 
 
     /**
@@ -91,7 +99,7 @@ angular.module('ui.grid')
      * which is provided when you want to remove an item.  The id should be unique.
      *
      */
-    addToGridMenu: function( grid, menuItems ) {
+    Service.prototype.addToGridMenu = function( grid, menuItems ) {
       if ( !angular.isArray( menuItems ) ) {
         gridUtil.logError( 'addToGridMenu: menuItems must be an array, and is not, not adding any items');
       } else {
@@ -102,7 +110,7 @@ angular.module('ui.grid')
           gridUtil.logError( 'Asked to addToGridMenu, but gridMenuScope not present.  Timing issue?  Please log issue with ui-grid');
         }
       }
-    },
+    };
 
 
     /**
@@ -118,26 +126,28 @@ angular.module('ui.grid')
      * @param {string} id the id we'd like to remove from the menu
      *
      */
-    removeFromGridMenu: function( grid, id ){
+
+    function findIndex (id, prev, value, index) {
+      if ( value.id === id ){
+        if (prev > -1) {
+          gridUtil.logError( 'removeFromGridMenu: found multiple items with the same id, removing only the last' );
+        } else {
+          return index;
+        }
+      }
+      return prev;
+    }
+    Service.prototype.removeFromGridMenu = function( grid, id ){
       var foundIndex = -1;
 
       if ( grid && grid.gridMenuScope ){
-        grid.gridMenuScope.registeredMenuItems.forEach( function( value, index ) {
-          if ( value.id === id ){
-            if (foundIndex > -1) {
-              gridUtil.logError( 'removeFromGridMenu: found multiple items with the same id, removing only the last' );
-            } else {
-
-              foundIndex = index;
-            }
-          }
-        });
+        foundIndex = grid.gridMenuScope.registeredMenuItems.reduce( findIndex.bind(null, id), foundIndex );
       }
 
       if ( foundIndex > -1 ){
         grid.gridMenuScope.registeredMenuItems.splice( foundIndex, 1 );
       }
-    },
+    };
 
 
     /**
@@ -177,7 +187,14 @@ angular.module('ui.grid')
      * the information that we need
      * @returns {array} an array of menu items that can be shown
      */
-    getMenuItems: function( $scope ) {
+
+    function _clearFlters ($scope, $event){
+      $scope.grid.clearAllFilters(undefined, true, undefined);
+    }
+    function _shown ($scope) {
+      return $scope.grid.options.enableFiltering;
+    }
+    Service.prototype.getMenuItems = function( $scope ) {
       var menuItems = [
         // this is where we add any menu items we want to always include
       ];
@@ -186,34 +203,26 @@ angular.module('ui.grid')
         if ( !angular.isArray( $scope.grid.options.gridMenuCustomItems ) ){
           gridUtil.logError( 'gridOptions.gridMenuCustomItems must be an array, and is not');
         } else {
-          menuItems = menuItems.concat( $scope.grid.options.gridMenuCustomItems );
+          menuItems = Array.prototype.push.apply(menuItems, $scope.grid.options.gridMenuCustomItems );
         }
       }
 
       var clearFilters = [{
         title: i18nService.getSafeText('gridMenu.clearAllFilters'),
-        action: function ($event) {
-          $scope.grid.clearAllFilters(undefined, true, undefined);
-        },
-        shown: function() {
-          return $scope.grid.options.enableFiltering;
-        },
+        action: _clearFlters.bind(null, $scope),
+        shown: _shown.bind(null, $scope),
         order: 100
       }];
-      menuItems = menuItems.concat( clearFilters );
-
-      menuItems = menuItems.concat( $scope.registeredMenuItems );
+      Array.prototype.push.apply(menuItems, clearFilters );
+      Array.prototype.push.apply(menuItems, $scope.registeredMenuItems );
 
       if ( $scope.grid.options.gridMenuShowHideColumns !== false ){
-        menuItems = menuItems.concat( service.showHideColumns( $scope ) );
+        Array.prototype.push.apply(menuItems, this.showHideColumns( $scope ) );
       }
 
-      menuItems.sort(function(a, b){
-        return a.order - b.order;
-      });
-
+      menuItems.sort(sortOrder);
       return menuItems;
-    },
+    };
 
 
     /**
@@ -244,7 +253,47 @@ angular.module('ui.grid')
      * the visible property on the columnDef using toggleColumnVisibility
      * @param {$scope} $scope of a gridMenu, which contains a reference to the grid
      */
-    showHideColumns: function( $scope ){
+
+    function menuItemAction (menuitem, service, $event){
+      $event.stopPropagation();
+      service.toggleColumnVisibility( menuitem.context.gridCol );
+    }
+
+    //ovde nesto lepo pucka ;)
+    function isItemShown (item) {
+      var f = item.context.gridCol.colDef.visible === true || item.context.gridCol.colDef.visible === undefined; 
+      return item.odd ? f : !f;
+    }
+
+    function MenuItem ($scope, service, colDef, icon, index, odd) {
+      this.icon = icon;
+      this.context = {
+        gridCol : $scope.grid.getColumn(colDef.name || colDef.field)
+      };
+      this.leaveOpen = true;
+      this.order = 301 + index*2 + (odd ? 1 : 0);
+      this.service = service;
+      this.action = menuItemAction.bind(null, this, this.service, event);
+      this.shown = isItemShown.bind(null, this);
+      this.odd = odd;
+    }
+
+    function traverseColDef($scope, service, showHideColumns, colDef, index ){
+      if ( colDef.enableHiding !== false ){
+        // add hide menu item - shows an OK icon as we only show when column is already visible
+
+        var menuItem = new MenuItem($scope, service, colDef, 'ui-grid-icon-ok', index, false);
+        service.setMenuItemTitle( menuItem, colDef, $scope.grid );
+        showHideColumns.push( menuItem );
+
+        // add show menu item - shows no icon as we only show when column is invisible
+        menuItem = new MenuItem($scope, service, colDef, 'ui-grid-icon-cancel', index, true);
+        service.setMenuItemTitle( menuItem, colDef, $scope.grid );
+        showHideColumns.push( menuItem );
+      }
+    }
+
+    Service.prototype.showHideColumns = function( $scope ){
       var showHideColumns = [];
       if ( !$scope.grid.options.columnDefs || $scope.grid.options.columnDefs.length === 0 || $scope.grid.columns.length === 0 ) {
         return showHideColumns;
@@ -258,45 +307,9 @@ angular.module('ui.grid')
 
       $scope.grid.options.gridMenuTitleFilter = $scope.grid.options.gridMenuTitleFilter ? $scope.grid.options.gridMenuTitleFilter : function( title ) { return title; };
 
-      $scope.grid.options.columnDefs.forEach( function( colDef, index ){
-        if ( colDef.enableHiding !== false ){
-          // add hide menu item - shows an OK icon as we only show when column is already visible
-          var menuItem = {
-            icon: 'ui-grid-icon-ok',
-            action: function($event) {
-              $event.stopPropagation();
-              service.toggleColumnVisibility( this.context.gridCol );
-            },
-            shown: function() {
-              return this.context.gridCol.colDef.visible === true || this.context.gridCol.colDef.visible === undefined;
-            },
-            context: { gridCol: $scope.grid.getColumn(colDef.name || colDef.field) },
-            leaveOpen: true,
-            order: 301 + index * 2
-          };
-          service.setMenuItemTitle( menuItem, colDef, $scope.grid );
-          showHideColumns.push( menuItem );
-
-          // add show menu item - shows no icon as we only show when column is invisible
-          menuItem = {
-            icon: 'ui-grid-icon-cancel',
-            action: function($event) {
-              $event.stopPropagation();
-              service.toggleColumnVisibility( this.context.gridCol );
-            },
-            shown: function() {
-              return !(this.context.gridCol.colDef.visible === true || this.context.gridCol.colDef.visible === undefined);
-            },
-            context: { gridCol: $scope.grid.getColumn(colDef.name || colDef.field) },
-            leaveOpen: true,
-            order: 301 + index * 2 + 1
-          };
-          service.setMenuItemTitle( menuItem, colDef, $scope.grid );
-          showHideColumns.push( menuItem );
-        }
-      });
+      $scope.grid.options.columnDefs.forEach(traverseColDef.bind(null, $scope, this, showHideColumns));
       return showHideColumns;
-    },
+    };
 
 
     /**
@@ -311,7 +324,12 @@ angular.module('ui.grid')
      * @param {Grid} grid the grid, from which we can get the options.gridMenuTitleFilter
      *
      */
-    setMenuItemTitle: function( menuItem, colDef, grid ){
+
+    function onTitle (menuItem, val) {
+      menuItem.title = val;
+    }
+
+    Service.prototype.setMenuItemTitle = function( menuItem, colDef, grid ){
       var title = grid.options.gridMenuTitleFilter( colDef.displayName || gridUtil.readableColumnName(colDef.name) || colDef.field );
 
       if ( typeof(title) === 'string' ){
@@ -319,16 +337,12 @@ angular.module('ui.grid')
       } else if ( title.then ){
         // must be a promise
         menuItem.title = "";
-        title.then( function( successValue ) {
-          menuItem.title = successValue;
-        }, function( errorValue ) {
-          menuItem.title = errorValue;
-        });
+        title.then( onTitle.bind(null, menuItem), onTitle.bind(null, menuItem));
       } else {
         gridUtil.logError('Expected gridMenuTitleFilter to return a string or a promise, it has returned neither, bad config');
         menuItem.title = 'badconfig';
       }
-    },
+    };
 
     /**
      * @ngdoc method
@@ -340,16 +354,14 @@ angular.module('ui.grid')
      * @param {GridCol} gridCol the column that we want to toggle
      *
      */
-    toggleColumnVisibility: function( gridCol ) {
+    Service.prototype.toggleColumnVisibility = function( gridCol ) {
       gridCol.colDef.visible = !( gridCol.colDef.visible === true || gridCol.colDef.visible === undefined );
 
       gridCol.grid.refresh();
       gridCol.grid.api.core.notifyDataChange( uiGridConstants.dataChange.COLUMN );
       gridCol.grid.api.core.raise.columnVisibilityChanged( gridCol );
-    }
-  };
-
-  return service;
+    };
+  return new Service();
 }])
 
 

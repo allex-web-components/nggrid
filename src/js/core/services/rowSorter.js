@@ -11,11 +11,13 @@ var module = angular.module('ui.grid');
  *
  */
 
+function mapper (a) { return '\\' + a; }
+
 module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGridConstants) {
   var currencyRegexStr =
     '(' +
     uiGridConstants.CURRENCY_SYMBOLS
-      .map(function (a) { return '\\' + a; }) // Escape all the currency symbols ($ at least will jack up this regex)
+      .map(mapper) // Escape all the currency symbols ($ at least will jack up this regex)
       .join('|') + // Join all the symbols together with |s
     ')?';
 
@@ -393,6 +395,58 @@ module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGr
    * for sort criteria
    * @returns {array} sorted rows
    */
+
+   function decideSortCol (sortCols, col) {
+      if (col.sort && !col.sort.ignoreSort && col.sort.direction && (col.sort.direction === uiGridConstants.ASC || col.sort.direction === uiGridConstants.DESC)) {
+        sortCols.push(col);
+      }
+   }
+   function clearIndex( row, idx ){
+      delete row.entity.$$uiGridIndex;
+   }
+
+   function rowSortFn (sortCols, col, direction, grid, r, rowA, rowB) {
+     var tem = 0,
+         idx = 0,
+         sortFn;
+
+     while (tem === 0 && idx < sortCols.length) {
+       // grab the metadata for the rest of the logic
+       col = sortCols[idx];
+       direction = sortCols[idx].sort.direction;
+
+       sortFn = rowSorter.getSortFn(grid, col, r);
+
+       var propA, propB;
+
+       if ( col.sortCellFiltered ){
+         propA = grid.getCellDisplayValue(rowA, col);
+         propB = grid.getCellDisplayValue(rowB, col);
+       } else {
+         propA = grid.getCellValue(rowA, col);
+         propB = grid.getCellValue(rowB, col);
+       }
+
+       tem = sortFn(propA, propB, rowA, rowB, direction);
+
+       idx++;
+     }
+
+     // Chrome doesn't implement a stable sort function.  If our sort returns 0
+     // (i.e. the items are equal), and we're at the last sort column in the list,
+     // then return the previous order using our custom
+     // index variable
+     if (tem === 0 ) {
+       return rowA.entity.$$uiGridIndex - rowB.entity.$$uiGridIndex;
+     }
+
+     // Made it this far, we don't have to worry about null & undefined
+     if (direction === uiGridConstants.ASC) {
+       return tem;
+     } else {
+       return 0 - tem;
+     }
+   }
   rowSorter.sort = function rowSorterSort(grid, rows, columns) {
     // first make sure we are even supposed to do work
     if (!rows) {
@@ -405,11 +459,7 @@ module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGr
 
     // Build the list of columns to sort by
     var sortCols = [];
-    columns.forEach(function (col) {
-      if (col.sort && !col.sort.ignoreSort && col.sort.direction && (col.sort.direction === uiGridConstants.ASC || col.sort.direction === uiGridConstants.DESC)) {
-        sortCols.push(col);
-      }
-    });
+    columns.forEach(decideSortCol.bind(null, sortCols));
 
     // Sort the "sort columns" by their sort priority
     sortCols = sortCols.sort(rowSorter.prioritySort);
@@ -430,58 +480,13 @@ module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGr
 
     // IE9-11 HACK.... the 'rows' variable would be empty where we call rowSorter.getSortFn(...) below. We have to use a separate reference
     // var d = data.slice(0);
-    var r = rows.slice(0);
 
     // Now actually sort the data
-    var rowSortFn = function (rowA, rowB) {
-      var tem = 0,
-          idx = 0,
-          sortFn;
 
-      while (tem === 0 && idx < sortCols.length) {
-        // grab the metadata for the rest of the logic
-        col = sortCols[idx];
-        direction = sortCols[idx].sort.direction;
 
-        sortFn = rowSorter.getSortFn(grid, col, r);
-
-        var propA, propB;
-
-        if ( col.sortCellFiltered ){
-          propA = grid.getCellDisplayValue(rowA, col);
-          propB = grid.getCellDisplayValue(rowB, col);
-        } else {
-          propA = grid.getCellValue(rowA, col);
-          propB = grid.getCellValue(rowB, col);
-        }
-
-        tem = sortFn(propA, propB, rowA, rowB, direction);
-
-        idx++;
-      }
-
-      // Chrome doesn't implement a stable sort function.  If our sort returns 0
-      // (i.e. the items are equal), and we're at the last sort column in the list,
-      // then return the previous order using our custom
-      // index variable
-      if (tem === 0 ) {
-        return rowA.entity.$$uiGridIndex - rowB.entity.$$uiGridIndex;
-      }
-
-      // Made it this far, we don't have to worry about null & undefined
-      if (direction === uiGridConstants.ASC) {
-        return tem;
-      } else {
-        return 0 - tem;
-      }
-    };
-
-    var newRows = rows.sort(rowSortFn);
+    var newRows = rows.sort(rowSortFn.bind(null,sortCols, col, direction, grid, rows.slice(0)));
 
     // remove the custom index field on each row, used to make a stable sort out of unstable sorts (e.g. Chrome)
-    var clearIndex = function( row, idx ){
-       delete row.entity.$$uiGridIndex;
-    };
     rows.forEach(clearIndex);
 
     return newRows;

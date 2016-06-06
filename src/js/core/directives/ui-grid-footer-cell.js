@@ -3,6 +3,22 @@
 
   angular.module('ui.grid').directive('uiGridFooterCell', ['$timeout', 'gridUtil', 'uiGridConstants', '$compile',
   function ($timeout, gridUtil, uiGridConstants, $compile) {
+
+    function updateClassF ( $scope, $elm, _tmp, grid ){
+      if ( _tmp.classAdded ){
+        $elm.removeClass( _tmp.classAdded );
+        _tmp.classAdded = null;
+      }
+
+      if (angular.isFunction($scope.col.footerCellClass)) {
+        _tmp.classAdded = $scope.col.footerCellClass($scope.grid, $scope.row, $scope.col, $scope.rowRenderIndex, $scope.colRenderIndex);
+      }
+      else {
+        _tmp.classAdded = $scope.col.footerCellClass;
+      }
+      $elm.addClass(_tmp.classAdded);
+    }
+
     var uiGridFooterCell = {
       priority: 0,
       scope: {
@@ -26,22 +42,11 @@
             $elm.addClass(initColClass);
 
             // apply any footerCellClass
-            var classAdded;
-            var updateClass = function( grid ){
-              var contents = $elm;
-              if ( classAdded ){
-                contents.removeClass( classAdded );
-                classAdded = null;
-              }
-  
-              if (angular.isFunction($scope.col.footerCellClass)) {
-                classAdded = $scope.col.footerCellClass($scope.grid, $scope.row, $scope.col, $scope.rowRenderIndex, $scope.colRenderIndex);
-              }
-              else {
-                classAdded = $scope.col.footerCellClass;
-              }
-              contents.addClass(classAdded);
-            };
+            var _tmp = {
+              classAdded : null
+            },
+            updateClass = updateClassF.bind(null, $scope, $elm, _tmp);
+
   
             if ($scope.col.footerCellClass) {
               updateClass();

@@ -90,100 +90,99 @@ angular.module('ui.grid')
    * @param {Grid} grid the grid we'd like to create this column in
    */
   function GridColumn(colDef, uid, grid) {
-    var self = this;
+    this.grid = grid;
+    this.uid = uid;
 
-    self.grid = grid;
-    self.uid = uid;
+    this.updateColumnDef(colDef, true);
+    this.aggregationValue = undefined;
+//     var throttledUpdateAggregationValue = gridUtil.throttle(updateAggregationValue, this.grid.options.aggregationCalcThrottle, { trailing: true, context: this.name });
+  }
 
-    self.updateColumnDef(colDef, true);
 
-    self.aggregationValue = undefined;
+  /**
+   * @ngdoc property
+   * @name aggregationType
+   * @propertyOf ui.grid.class:GridOptions.columnDef
+   * @description The aggregation that you'd like to show in the columnFooter for this
+   * column.  Valid values are in uiGridConstants, and currently include `uiGridConstants.aggregationTypes.count`,
+   * `uiGridConstants.aggregationTypes.sum`, `uiGridConstants.aggregationTypes.avg`, `uiGridConstants.aggregationTypes.min`,
+   * `uiGridConstants.aggregationTypes.max`.
+   *
+   * You can also provide a function as the aggregation type, in this case your function needs to accept the full
+   * set of visible rows, and return a value that should be shown
+  */
 
-    // The footer cell registers to listen for the rowsRendered event, and calls this.  Needed to be
-    // in something with a scope so that the dereg would get called
-    self.updateAggregationValue = function() {
+  // The footer cell registers to listen for the rowsRendered event, and calls this.  Needed to be
+  // in something with a scope so that the dereg would get called
+  GridColumn.prototype.updateAggregationValue = function () {
+    // gridUtil.logDebug('getAggregationValue for Column ' + this.colDef.name);
+    if (!this.aggregationType) {
+      this.aggregationValue = undefined;
+      return;
+    }
 
-     // gridUtil.logDebug('getAggregationValue for Column ' + self.colDef.name);
+    var result = 0;
+    var visibleRows = this.grid.getVisibleRows();
 
-      /**
-       * @ngdoc property
-       * @name aggregationType
-       * @propertyOf ui.grid.class:GridOptions.columnDef
-       * @description The aggregation that you'd like to show in the columnFooter for this
-       * column.  Valid values are in uiGridConstants, and currently include `uiGridConstants.aggregationTypes.count`,
-       * `uiGridConstants.aggregationTypes.sum`, `uiGridConstants.aggregationTypes.avg`, `uiGridConstants.aggregationTypes.min`,
-       * `uiGridConstants.aggregationTypes.max`.
-       *
-       * You can also provide a function as the aggregation type, in this case your function needs to accept the full
-       * set of visible rows, and return a value that should be shown
-       */
-      if (!self.aggregationType) {
-        self.aggregationValue = undefined;
-        return;
-      }
-
-      var result = 0;
-      var visibleRows = self.grid.getVisibleRows();
-
-      var cellValues = function(){
-        var values = [];
-        visibleRows.forEach(function (row) {
-          var cellValue = self.grid.getCellValue(row, self);
-          var cellNumber = Number(cellValue);
-          if (!isNaN(cellNumber)) {
-            values.push(cellNumber);
-          }
-        });
-        return values;
-      };
-
-      if (angular.isFunction(self.aggregationType)) {
-        self.aggregationValue = self.aggregationType(visibleRows, self);
-      }
-      else if (self.aggregationType === uiGridConstants.aggregationTypes.count) {
-        self.aggregationValue = self.grid.getVisibleRowCount();
-      }
-      else if (self.aggregationType === uiGridConstants.aggregationTypes.sum) {
-        cellValues().forEach(function (value) {
-          result += value;
-        });
-        self.aggregationValue = result;
-      }
-      else if (self.aggregationType === uiGridConstants.aggregationTypes.avg) {
-        cellValues().forEach(function (value) {
-          result += value;
-        });
-        result = result / cellValues().length;
-        self.aggregationValue = result;
-      }
-      else if (self.aggregationType === uiGridConstants.aggregationTypes.min) {
-        self.aggregationValue = Math.min.apply(null, cellValues());
-      }
-      else if (self.aggregationType === uiGridConstants.aggregationTypes.max) {
-        self.aggregationValue = Math.max.apply(null, cellValues());
-      }
-      else {
-        self.aggregationValue = '\u00A0';
-      }
+    var cellValues = function(){
+      var values = [];
+      visibleRows.forEach(function (row) {
+        var cellValue = this.grid.getCellValue(row, this);
+        var cellNumber = Number(cellValue);
+        if (!isNaN(cellNumber)) {
+          values.push(cellNumber);
+        }
+      });
+      return values;
     };
 
-//     var throttledUpdateAggregationValue = gridUtil.throttle(updateAggregationValue, self.grid.options.aggregationCalcThrottle, { trailing: true, context: self.name });
+    if (angular.isFunction(this.aggregationType)) {
+      this.aggregationValue = this.aggregationType(visibleRows, this);
+    }
+    else if (this.aggregationType === uiGridConstants.aggregationTypes.count) {
+      this.aggregationValue = this.grid.getVisibleRowCount();
+    }
+    else if (this.aggregationType === uiGridConstants.aggregationTypes.sum) {
+      cellValues().forEach(function (value) {
+        result += value;
+      });
+      this.aggregationValue = result;
+    }
+    else if (this.aggregationType === uiGridConstants.aggregationTypes.avg) {
+      cellValues().forEach(function (value) {
+        result += value;
+      });
+      result = result / cellValues().length;
+      this.aggregationValue = result;
+    }
+    else if (this.aggregationType === uiGridConstants.aggregationTypes.min) {
+      this.aggregationValue = Math.min.apply(null, cellValues());
+    }
+    else if (this.aggregationType === uiGridConstants.aggregationTypes.max) {
+      this.aggregationValue = Math.max.apply(null, cellValues());
+    }
+    else {
+      this.aggregationValue = '\u00A0';
+    }
+  };
 
-    /**
-     * @ngdoc function
-     * @name getAggregationValue
-     * @methodOf ui.grid.class:GridColumn
-     * @description gets the aggregation value based on the aggregation type for this column.
-     * Debounced using scrollDebounce option setting
-     */
-    this.getAggregationValue =  function() {
-//      if (!self.grid.isScrollingVertically && !self.grid.isScrollingHorizontally) {
+  /**
+   * @ngdoc function
+   * @name getAggregationValue
+   * @methodOf ui.grid.class:GridColumn
+   * @description gets the aggregation value based on the aggregation type for this column.
+   * Debounced using scrollDebounce option setting
+   */
+
+  GridColumn.prototype.getAggregationValue = function () {
+//      if (!this.grid.isScrollingVertically && !this.grid.isScrollingHorizontally) {
 //        throttledUpdateAggregationValue();
 //      }
 
-      return self.aggregationValue;
-    };
-  }
+    return this.aggregationValue;
+  };
+
+
 
   /**
    * @ngdoc function
@@ -207,19 +206,17 @@ angular.module('ui.grid')
    * @param {object} defaultValue the value to use if the colDef doesn't provide the setting
    */
   GridColumn.prototype.setPropertyOrDefault = function (colDef, propName, defaultValue) {
-    var self = this;
-
     // Use the column definition filter if we were passed it
     if (typeof(colDef[propName]) !== 'undefined' && colDef[propName]) {
-      self[propName] = colDef[propName];
+      this[propName] = colDef[propName];
     }
     // Otherwise use our own if it's set
-    else if (typeof(self[propName]) !== 'undefined') {
-      self[propName] = self[propName];
+    else if (typeof(this[propName]) !== 'undefined') {
+      this[propName] = this[propName];
     }
     // Default to empty object for the filter
     else {
-      self[propName] = defaultValue ? defaultValue : {};
+      this[propName] = defaultValue ? defaultValue : {};
     }
   };
 
@@ -409,23 +406,22 @@ angular.module('ui.grid')
    * be copied down
    */
   GridColumn.prototype.updateColumnDef = function(colDef, isNew) {
-    var self = this;
 
-    self.colDef = colDef;
+    this.colDef = colDef;
 
     if (colDef.name === undefined) {
-      throw new Error('colDef.name is required for column at index ' + self.grid.options.columnDefs.indexOf(colDef));
+      throw new Error('colDef.name is required for column at index ' + this.grid.options.columnDefs.indexOf(colDef));
     }
 
-    self.displayName = (colDef.displayName === undefined) ? gridUtil.readableColumnName(colDef.name) : colDef.displayName;
+    this.displayName = (colDef.displayName === undefined) ? gridUtil.readableColumnName(colDef.name) : colDef.displayName;
 
-    if (!angular.isNumber(self.width) || !self.hasCustomWidth || colDef.allowCustomWidthOverride) {
+    if (!angular.isNumber(this.width) || !this.hasCustomWidth || colDef.allowCustomWidthOverride) {
       var colDefWidth = colDef.width;
       var parseErrorMsg = "Cannot parse column width '" + colDefWidth + "' for column named '" + colDef.name + "'";
-      self.hasCustomWidth = false;
+      this.hasCustomWidth = false;
 
       if (!angular.isString(colDefWidth) && !angular.isNumber(colDefWidth)) {
-        self.width = '*';
+        this.width = '*';
       } else if (angular.isString(colDefWidth)) {
         // See if it ends with a percent
         if (gridUtil.endsWith(colDefWidth, '%')) {
@@ -435,15 +431,15 @@ angular.module('ui.grid')
           if (isNaN(percent)) {
             throw new Error(parseErrorMsg);
           }
-          self.width = colDefWidth;
+          this.width = colDefWidth;
         }
         // And see if it's a number string
         else if (colDefWidth.match(/^(\d+)$/)) {
-          self.width = parseInt(colDefWidth.match(/^(\d+)$/)[1], 10);
+          this.width = parseInt(colDefWidth.match(/^(\d+)$/)[1], 10);
         }
         // Otherwise it should be a string of asterisks
         else if (colDefWidth.match(/^\*+$/)) {
-          self.width = colDefWidth;
+          this.width = colDefWidth;
         }
         // No idea, throw an Error
         else {
@@ -452,7 +448,7 @@ angular.module('ui.grid')
       }
       // Is a number, use it as the width
       else {
-        self.width = colDefWidth;
+        this.width = colDefWidth;
       }
     }
 
@@ -462,34 +458,34 @@ angular.module('ui.grid')
 
       if (!angular.isString(minOrMaxWidth) && !angular.isNumber(minOrMaxWidth)) {
         //Sets default minWidth and maxWidth values
-        self[name] = ((name === 'minWidth') ? 30 : 9000);
+        this[name] = ((name === 'minWidth') ? 30 : 9000);
       } else if (angular.isString(minOrMaxWidth)) {
         if (minOrMaxWidth.match(/^(\d+)$/)) {
-          self[name] = parseInt(minOrMaxWidth.match(/^(\d+)$/)[1], 10);
+          this[name] = parseInt(minOrMaxWidth.match(/^(\d+)$/)[1], 10);
         } else {
           throw new Error(parseErrorMsg);
         }
       } else {
-        self[name] = minOrMaxWidth;
+        this[name] = minOrMaxWidth;
       }
     });
 
     //use field if it is defined; name if it is not
-    self.field = (colDef.field === undefined) ? colDef.name : colDef.field;
+    this.field = (colDef.field === undefined) ? colDef.name : colDef.field;
 
-    if ( typeof( self.field ) !== 'string' ){
-      gridUtil.logError( 'Field is not a string, this is likely to break the code, Field is: ' + self.field );
+    if ( typeof( this.field ) !== 'string' ){
+      gridUtil.logError( 'Field is not a string, this is likely to break the code, Field is: ' + this.field );
     }
 
-    self.name = colDef.name;
+    this.name = colDef.name;
 
     // Use colDef.displayName as long as it's not undefined, otherwise default to the field name
-    self.displayName = (colDef.displayName === undefined) ? gridUtil.readableColumnName(colDef.name) : colDef.displayName;
+    this.displayName = (colDef.displayName === undefined) ? gridUtil.readableColumnName(colDef.name) : colDef.displayName;
 
-    //self.originalIndex = index;
+    //this.originalIndex = index;
 
-    self.aggregationType = angular.isDefined(colDef.aggregationType) ? colDef.aggregationType : null;
-    self.footerCellTemplate = angular.isDefined(colDef.footerCellTemplate) ? colDef.footerCellTemplate : null;
+    this.aggregationType = angular.isDefined(colDef.aggregationType) ? colDef.aggregationType : null;
+    this.footerCellTemplate = angular.isDefined(colDef.footerCellTemplate) ? colDef.footerCellTemplate : null;
 
     /**
      * @ngdoc property
@@ -505,15 +501,15 @@ angular.module('ui.grid')
      *
      */
     if ( typeof(colDef.cellTooltip) === 'undefined' || colDef.cellTooltip === false ) {
-      self.cellTooltip = false;
+      this.cellTooltip = false;
     } else if ( colDef.cellTooltip === true ){
-      self.cellTooltip = function(row, col) {
-        return self.grid.getCellValue( row, col );
+      this.cellTooltip = function(row, col) {
+        return this.grid.getCellValue( row, col );
       };
     } else if (typeof(colDef.cellTooltip) === 'function' ){
-      self.cellTooltip = colDef.cellTooltip;
+      this.cellTooltip = colDef.cellTooltip;
     } else {
-      self.cellTooltip = function ( row, col ){
+      this.cellTooltip = function ( row, col ){
         return col.colDef.cellTooltip;
       };
     }
@@ -532,15 +528,15 @@ angular.module('ui.grid')
      *
      */
     if ( typeof(colDef.headerTooltip) === 'undefined' || colDef.headerTooltip === false ) {
-      self.headerTooltip = false;
+      this.headerTooltip = false;
     } else if ( colDef.headerTooltip === true ){
-      self.headerTooltip = function(col) {
+      this.headerTooltip = function(col) {
         return col.displayName;
       };
     } else if (typeof(colDef.headerTooltip) === 'function' ){
-      self.headerTooltip = colDef.headerTooltip;
+      this.headerTooltip = colDef.headerTooltip;
     } else {
-      self.headerTooltip = function ( col ) {
+      this.headerTooltip = function ( col ) {
         return col.colDef.headerTooltip;
       };
     }
@@ -554,7 +550,7 @@ angular.module('ui.grid')
      * or it can be a function(grid, row, col, rowRenderIndex, colRenderIndex) that returns a class name
      *
      */
-    self.footerCellClass = colDef.footerCellClass;
+    this.footerCellClass = colDef.footerCellClass;
 
     /**
      * @ngdoc property
@@ -564,7 +560,7 @@ angular.module('ui.grid')
      * or it can be a function(grid, row, col, rowRenderIndex, colRenderIndex) that returns a class name
      *
      */
-    self.cellClass = colDef.cellClass;
+    this.cellClass = colDef.cellClass;
 
     /**
      * @ngdoc property
@@ -574,7 +570,7 @@ angular.module('ui.grid')
      * or it can be a function(grid, row, col, rowRenderIndex, colRenderIndex) that returns a class name
      *
      */
-    self.headerCellClass = colDef.headerCellClass;
+    this.headerCellClass = colDef.headerCellClass;
 
     /**
      * @ngdoc property
@@ -586,7 +582,7 @@ angular.module('ui.grid')
      *   gridOptions.columnDefs[0].cellFilter = 'date'
      *
      */
-    self.cellFilter = colDef.cellFilter ? colDef.cellFilter : "";
+    this.cellFilter = colDef.cellFilter ? colDef.cellFilter : "";
 
     /**
      * @ngdoc boolean
@@ -599,7 +595,7 @@ angular.module('ui.grid')
      * for the column which hanldes the returned type. You may specify one of the `sortingAlgorithms`
      * found in the {@link ui.grid.RowSorter rowSorter} service.
      */
-    self.sortCellFiltered = colDef.sortCellFiltered ? true : false;
+    this.sortCellFiltered = colDef.sortCellFiltered ? true : false;
 
     /**
      * @ngdoc boolean
@@ -608,7 +604,7 @@ angular.module('ui.grid')
      * @description (optional) False by default. When `true` uiGrid will apply the cellFilter before
      * applying "search" `filters`.
      */
-    self.filterCellFiltered = colDef.filterCellFiltered ? true : false;
+    this.filterCellFiltered = colDef.filterCellFiltered ? true : false;
 
     /**
      * @ngdoc property
@@ -620,7 +616,7 @@ angular.module('ui.grid')
      *   gridOptions.columnDefs[0].headerCellFilter = 'translate'
      *
      */
-    self.headerCellFilter = colDef.headerCellFilter ? colDef.headerCellFilter : "";
+    this.headerCellFilter = colDef.headerCellFilter ? colDef.headerCellFilter : "";
 
     /**
      * @ngdoc property
@@ -632,16 +628,16 @@ angular.module('ui.grid')
      *   gridOptions.columnDefs[0].footerCellFilter = 'date'
      *
      */
-    self.footerCellFilter = colDef.footerCellFilter ? colDef.footerCellFilter : "";
+    this.footerCellFilter = colDef.footerCellFilter ? colDef.footerCellFilter : "";
 
-    self.visible = gridUtil.isNullOrUndefined(colDef.visible) || colDef.visible;
+    this.visible = gridUtil.isNullOrUndefined(colDef.visible) || colDef.visible;
 
-    self.headerClass = colDef.headerClass;
-    //self.cursor = self.sortable ? 'pointer' : 'default';
+    this.headerClass = colDef.headerClass;
+    //this.cursor = this.sortable ? 'pointer' : 'default';
 
     // Turn on sorting by default
-    self.enableSorting = typeof(colDef.enableSorting) !== 'undefined' ? colDef.enableSorting : true;
-    self.sortingAlgorithm = colDef.sortingAlgorithm;
+    this.enableSorting = typeof(colDef.enableSorting) !== 'undefined' ? colDef.enableSorting : true;
+    this.sortingAlgorithm = colDef.sortingAlgorithm;
 
     /**
      * @ngdoc property
@@ -658,7 +654,7 @@ angular.module('ui.grid')
      * Each direction may not appear in the list more than once (e.g. `[ASC,
      * DESC, DESC]` is not allowed), and the list may not be empty.
      */
-    self.sortDirectionCycle = typeof(colDef.sortDirectionCycle) !== 'undefined' ?
+    this.sortDirectionCycle = typeof(colDef.sortDirectionCycle) !== 'undefined' ?
       colDef.sortDirectionCycle :
       [null, uiGridConstants.ASC, uiGridConstants.DESC];
 
@@ -669,8 +665,8 @@ angular.module('ui.grid')
      * @description (optional) False by default. When enabled, this setting hides the removeSort option
      * in the menu, and prevents users from manually removing the sort
      */
-    if ( typeof(self.suppressRemoveSort) === 'undefined'){
-      self.suppressRemoveSort = typeof(colDef.suppressRemoveSort) !== 'undefined' ? colDef.suppressRemoveSort : false;
+    if ( typeof(this.suppressRemoveSort) === 'undefined'){
+      this.suppressRemoveSort = typeof(colDef.suppressRemoveSort) !== 'undefined' ? colDef.suppressRemoveSort : false;
     }
 
     /**
@@ -685,14 +681,14 @@ angular.module('ui.grid')
      *
      */
     // Turn on filtering by default (it's disabled by default at the Grid level)
-    self.enableFiltering = typeof(colDef.enableFiltering) !== 'undefined' ? colDef.enableFiltering : true;
+    this.enableFiltering = typeof(colDef.enableFiltering) !== 'undefined' ? colDef.enableFiltering : true;
 
-    // self.menuItems = colDef.menuItems;
-    self.setPropertyOrDefault(colDef, 'menuItems', []);
+    // this.menuItems = colDef.menuItems;
+    this.setPropertyOrDefault(colDef, 'menuItems', []);
 
     // Use the column definition sort if we were passed it, but only if this is a newly added column
     if ( isNew ){
-      self.setPropertyOrDefault(colDef, 'sort');
+      this.setPropertyOrDefault(colDef, 'sort');
     }
 
     // Set up default filters array for when one is not provided.
@@ -766,7 +762,7 @@ angular.module('ui.grid')
 
     /*
 
-      self.filters = [
+      this.filters = [
         {
           term: 'search term'
           condition: uiGridConstants.filter.CONTAINS,
@@ -785,10 +781,10 @@ angular.module('ui.grid')
     // removed it.
     // However, we do want to keep the settings if they change, just not the term
     if ( isNew ) {
-      self.setPropertyOrDefault(colDef, 'filter');
-      self.setPropertyOrDefault(colDef, 'filters', defaultFilters);
-    } else if ( self.filters.length === defaultFilters.length ) {
-      self.filters.forEach( function( filter, index ){
+      this.setPropertyOrDefault(colDef, 'filter');
+      this.setPropertyOrDefault(colDef, 'filters', defaultFilters);
+    } else if ( this.filters.length === defaultFilters.length ) {
+      this.filters.forEach( function( filter, index ){
         if (typeof(defaultFilters[index].placeholder) !== 'undefined') {
           filter.placeholder = defaultFilters[index].placeholder;
         }
@@ -873,15 +869,14 @@ angular.module('ui.grid')
    * Columns will be default be in the `body` render container if they aren't allocated to one specifically.
    */
   GridColumn.prototype.getRenderContainer = function getRenderContainer() {
-    var self = this;
 
-    var containerId = self.renderContainer;
+    var containerId = this.renderContainer;
 
     if (containerId === null || containerId === '' || containerId === undefined) {
       containerId = 'body';
     }
 
-    return self.grid.renderContainers[containerId];
+    return this.grid.renderContainers[containerId];
   };
 
   /**
@@ -915,15 +910,14 @@ angular.module('ui.grid')
    *
    */
   GridColumn.prototype.getAggregationText = function () {
-    var self = this;
-    if ( self.colDef.aggregationHideLabel ){
+    if ( this.colDef.aggregationHideLabel ){
       return '';
     }
-    else if ( self.colDef.aggregationLabel ) {
-      return self.colDef.aggregationLabel;
+    else if ( this.colDef.aggregationLabel ) {
+      return this.colDef.aggregationLabel;
     }
     else {
-      switch ( self.colDef.aggregationType ){
+      switch ( this.colDef.aggregationType ){
         case uiGridConstants.aggregationTypes.count:
           return i18nService.getSafeText('aggregation.count');
         case uiGridConstants.aggregationTypes.sum:
@@ -941,15 +935,11 @@ angular.module('ui.grid')
   };
 
   GridColumn.prototype.getCellTemplate = function () {
-    var self = this;
-
-    return self.cellTemplatePromise;
+    return this.cellTemplatePromise;
   };
 
   GridColumn.prototype.getCompiledElementFn = function () {
-    var self = this;
-
-    return self.compiledElementFnDefer.promise;
+    return this.compiledElementFnDefer.promise;
   };
 
   return GridColumn;
