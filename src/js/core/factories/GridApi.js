@@ -339,7 +339,7 @@
         }
 
         function traverseFeatures (gridapi, feature){
-          feature.events.forEach(gridapi.registerEvent.bind(gridapi, gridapi, feature.name));
+          feature.events.forEach(gridapi.registerEvent.bind(gridapi, feature.name));
         }
 
         GridApi.prototype.registerEventsFromObject = function (eventObjectMap) {
