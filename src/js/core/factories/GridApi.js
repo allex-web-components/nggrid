@@ -236,8 +236,8 @@
          * @param {string} eventName  name of the event
          */
 
-         function doAngularEmit (args) {
-            $rootScope.$emit.apply($rootScope, args);
+         function doAngularEmit (eventId) {
+            $rootScope.$emit.apply($rootScope, arguments);
          }
 
          function removeListener (gridapi, listener){
@@ -285,10 +285,7 @@
           };
           */
 
-          var args = Array.prototype.slice.call(arguments);
-          args.unshift(eventId);
-
-          feature.raise[eventName] = doAngularEmit.bind(null, args);
+          feature.raise[eventName] = doAngularEmit.bind(null, eventId);
 
           // gridUtil.logDebug('Creating on event method ' + featureName + '.on.' + eventName);
           feature.on[eventName] = registerOnEvent.bind(null, this, featureName, eventName, eventId);
