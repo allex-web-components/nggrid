@@ -25,7 +25,10 @@
     "grunt",
     "lib",
     "misc",
-    "test"
+    "test",
+    "*.md",
+    "Gruntfile.js",
+    "*.sh"
   ],
   "main": ["./ui-grid.css", "./ui-grid.js"],
   "devDependencies": {
