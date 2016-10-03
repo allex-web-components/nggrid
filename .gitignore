@@ -61,8 +61,6 @@ workbench/jquery*
 workbench/bootstrap*
 web.config
 # Build results
-[Dd]ebug/
-[Rr]elease/
 *_i.c
 *_p.c
 *.ilk
