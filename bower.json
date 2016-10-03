@@ -26,6 +26,7 @@
     "lib",
     "misc",
     "test",
+    "design",
     "*.md",
     "Gruntfile.js",
     "*.sh"
