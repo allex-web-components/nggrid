@@ -20,7 +20,12 @@
     "node_modules",
     "bower_components",
     "test",
-    "tests"
+    "tests",
+    "src",
+    "grunt",
+    "lib",
+    "misc",
+    "test"
   ],
   "main": ["./ui-grid.css", "./ui-grid.js"],
   "devDependencies": {
