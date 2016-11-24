@@ -492,6 +492,7 @@ angular.module('ui.grid')
        * this property allows you to assign any reference you want to grid.appScope
        */
       baseOptions.appScopeProvider = baseOptions.appScopeProvider || null;
+      baseOptions.rowClass = baseOptions.rowClass || null;
 
       return baseOptions;
     }

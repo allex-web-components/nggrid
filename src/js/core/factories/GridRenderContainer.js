@@ -90,6 +90,16 @@ angular.module('ui.grid')
     return gridapi.columnStyles;
   }
 
+  GridRenderContainer.prototype.rowClass = function (rowRenderIndex) {
+    var rowClass = this.grid.options.rowClass;
+    if (!rowClass) {
+      return null;
+    }
+
+    var entity = this.grid.rows && this.grid.rows[rowRenderIndex] ? this.grid.rows[rowRenderIndex].entity : null;
+    return rowClass ? (typeof(rowClass) === 'function' ? rowClass(entity) : rowClass) : null;
+  };
+
 
   GridRenderContainer.prototype.reset = function reset() {
     // this.rowCache.length = 0;

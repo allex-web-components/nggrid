@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.1-24d0c0c - 2016-10-03
+ * ui-grid - v3.1.5 - 2016-11-24
  * Copyright (c) 2016 ; License: MIT 
  */
 
@@ -8133,6 +8133,7 @@ angular.module('ui.grid')
        * this property allows you to assign any reference you want to grid.appScope
        */
       baseOptions.appScopeProvider = baseOptions.appScopeProvider || null;
+      baseOptions.rowClass = baseOptions.rowClass || null;
 
       return baseOptions;
     }
@@ -8234,6 +8235,16 @@ angular.module('ui.grid')
     gridapi.updateColumnWidths();
     return gridapi.columnStyles;
   }
+
+  GridRenderContainer.prototype.rowClass = function (rowRenderIndex) {
+    var rowClass = this.grid.options.rowClass;
+    if (!rowClass) {
+      return null;
+    }
+
+    var entity = this.grid.rows && this.grid.rows[rowRenderIndex] ? this.grid.rows[rowRenderIndex].entity : null;
+    return rowClass ? (typeof(rowClass) === 'function' ? rowClass(entity) : rowClass) : null;
+  };
 
 
   GridRenderContainer.prototype.reset = function reset() {
@@ -28380,7 +28391,7 @@ angular.module('ui.grid').run(['$templateCache', function($templateCache) {
 
 
   $templateCache.put('ui-grid/uiGridViewport',
-    "<div role=\"rowgroup\" class=\"ui-grid-viewport\" ng-style=\"colContainer.getViewportStyle()\"><!-- tbody --><div class=\"ui-grid-canvas\"><div ng-repeat=\"(rowRenderIndex, row) in rowContainer.renderedRows track by $index\" class=\"ui-grid-row\" ng-style=\"Viewport.rowStyle(rowRenderIndex)\"><div role=\"row\" ui-grid-row=\"row\" row-render-index=\"rowRenderIndex\"></div></div></div></div>"
+    "<div role=\"rowgroup\" class=\"ui-grid-viewport\" ng-style=\"colContainer.getViewportStyle()\"><!-- tbody --><div class=\"ui-grid-canvas\"><div ng-repeat=\"(rowRenderIndex, row) in rowContainer.renderedRows track by $index\" class=\"ui-grid-row\" ng-style=\"Viewport.rowStyle(rowRenderIndex)\"><div role=\"row\" ui-grid-row=\"row\" row-render-index=\"rowRenderIndex\" ng-class=\"rowContainer.rowClass(rowRenderIndex)\"></div></div></div></div>"
   );
 
 
