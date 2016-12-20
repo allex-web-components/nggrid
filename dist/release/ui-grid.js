@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.5 - 2016-11-24
+ * ui-grid - v3.1.6 - 2016-12-20
  * Copyright (c) 2016 ; License: MIT 
  */
 
@@ -811,7 +811,7 @@ function ($timeout, gridUtil, uiGridConstants, uiGridColumnMenuService, $documen
 
     function postCompile ($scope, $elm, $attrs, controllers){
       $scope.aria = i18nService.getSafeText('headerCell.aria');
-      $scope.removeFilter = removeFilter.bind($elm);
+      $scope.removeFilter = removeFilter.bind(null, $elm);
     }
 
 

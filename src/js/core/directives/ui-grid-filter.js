@@ -26,7 +26,7 @@
 
     function postCompile ($scope, $elm, $attrs, controllers){
       $scope.aria = i18nService.getSafeText('headerCell.aria');
-      $scope.removeFilter = removeFilter.bind($elm);
+      $scope.removeFilter = removeFilter.bind(null, $elm);
     }
 
 
