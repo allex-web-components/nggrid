@@ -220,6 +220,13 @@
       // columns length is greater than the number of row header columns, which don't count because they're created automatically
       var hasColumns = ctrl.grid.columns.length > (ctrl.grid.rowHeaderColumns ? ctrl.grid.rowHeaderColumns.length : 0);
 
+      if (newData.length) {
+        for (var i = 0; i < newData.length; i++) {
+          //remove old hashKey data ... newData should be as clean as possible ...
+          delete newData[i].$$hashKey;
+        }
+      }
+
       if (
         // If we have no columns
         !hasColumns &&
