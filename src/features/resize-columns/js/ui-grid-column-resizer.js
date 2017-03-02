@@ -341,11 +341,12 @@
         // Check that the requested width isn't wider than the maxWidth, or narrower than the minWidth
         // Returns the new recommended with, after constraints applied
         function constrainWidth(col, width){
-          var newWidth = width;
+          var newWidth = width,
+            minWidth = col.minWidth || col.grid.options.minimumColumnSize;
 
           // If the new width would be less than the column's allowably minimum width, don't allow it
-          if (col.minWidth && newWidth < col.minWidth) {
-            newWidth = col.minWidth;
+          if (minWidth && newWidth < minWidth) {
+            newWidth = minWidth;
           }
           else if (col.maxWidth && newWidth > col.maxWidth) {
             newWidth = col.maxWidth;
@@ -388,7 +389,6 @@
 
           // Get the width that this mouse would give the column
           var newWidth = parseInt(col.drawnWidth + xDiff * rtlMultiplier, 10);
-
           // check we're not outside the allowable bounds for this column
           x = x + ( constrainWidth(col, newWidth) - newWidth ) * rtlMultiplier;
 

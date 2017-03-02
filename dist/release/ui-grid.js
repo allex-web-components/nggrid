@@ -1,5 +1,5 @@
 /*!
- * ui-grid - v3.1.8 - 2017-03-02
+ * ui-grid - v3.1.9 - 2017-03-03
  * Copyright (c) 2017 ; License: MIT 
  */
 
@@ -23116,11 +23116,12 @@ module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGr
         // Check that the requested width isn't wider than the maxWidth, or narrower than the minWidth
         // Returns the new recommended with, after constraints applied
         function constrainWidth(col, width){
-          var newWidth = width;
+          var newWidth = width,
+            minWidth = col.minWidth || col.grid.options.minimumColumnSize;
 
           // If the new width would be less than the column's allowably minimum width, don't allow it
-          if (col.minWidth && newWidth < col.minWidth) {
-            newWidth = col.minWidth;
+          if (minWidth && newWidth < minWidth) {
+            newWidth = minWidth;
           }
           else if (col.maxWidth && newWidth > col.maxWidth) {
             newWidth = col.maxWidth;
@@ -23163,7 +23164,6 @@ module.service('rowSorter', ['$parse', 'uiGridConstants', function ($parse, uiGr
 
           // Get the width that this mouse would give the column
           var newWidth = parseInt(col.drawnWidth + xDiff * rtlMultiplier, 10);
-
           // check we're not outside the allowable bounds for this column
           x = x + ( constrainWidth(col, newWidth) - newWidth ) * rtlMultiplier;
 
