@@ -204,7 +204,7 @@ $scope.dynamicStyles = [
       };
 
       $scope.showMenu = showMenu.bind(null, $scope, $elm, ctx);
-      $scope.hideMenu = hideMenu.bind(null, $scope, $elm);
+      $scope.hideMenu = hideMenu.bind(null, $scope, $elm, ctx);
 
       $scope.$on('hide-menu', $scope.hideMenu);
       $scope.$on('show-menu', $scope.showMenu);

@@ -1,6 +1,6 @@
 /*!
- * ui-grid - v3.1.7 - 2016-12-21
- * Copyright (c) 2016 ; License: MIT 
+ * ui-grid - v3.1.8 - 2017-03-02
+ * Copyright (c) 2017 ; License: MIT 
  */
 
 (function () {
@@ -2233,7 +2233,7 @@ $scope.dynamicStyles = [
       };
 
       $scope.showMenu = showMenu.bind(null, $scope, $elm, ctx);
-      $scope.hideMenu = hideMenu.bind(null, $scope, $elm);
+      $scope.hideMenu = hideMenu.bind(null, $scope, $elm, ctx);
 
       $scope.$on('hide-menu', $scope.hideMenu);
       $scope.$on('show-menu', $scope.showMenu);
