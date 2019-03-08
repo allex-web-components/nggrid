@@ -1,6 +1,6 @@
 /*!
- * ui-grid - v3.1.9 - 2017-03-03
- * Copyright (c) 2017 ; License: MIT 
+ * allex_nggridwebcomponent - v - 2019-03-08
+ * Copyright (c) 2019 ; License: MIT 
  */
 
 (function () {
