@@ -1557,7 +1557,7 @@ angular.module('ui.grid')
     }
 
     this.refreshCanceller = $timeout(this.refreshCanvas.bind(this, true));
-    this.refreshCanceller.then(refreshCanceller.bind(null, this));
+    this.refreshCanceller.then(refreshCanceller.bind(null, this), function() {});
     return this.refreshCanceller;
   };
 

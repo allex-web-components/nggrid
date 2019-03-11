@@ -1,5 +1,5 @@
 /*!
- * allex_nggridwebcomponent - v - 2019-03-08
+ * allex_nggridwebcomponent - v - 2019-03-11
  * Copyright (c) 2019 ; License: MIT 
  */
 
@@ -5322,7 +5322,7 @@ angular.module('ui.grid')
     }
 
     this.refreshCanceller = $timeout(this.refreshCanvas.bind(this, true));
-    this.refreshCanceller.then(refreshCanceller.bind(null, this));
+    this.refreshCanceller.then(refreshCanceller.bind(null, this), function() {});
     return this.refreshCanceller;
   };
 
