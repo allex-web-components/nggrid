@@ -1,0 +1,8 @@
+{
+  "actualtarget": ["dist", "release", "allex_nggridwebcomponent.js"],
+  "additionaltargets": {
+    "css": [
+      ["dist", "release", "allex_nggridwebcomponent.min.css"]
+    ]
+  }
+}
